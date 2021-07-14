@@ -2,10 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	"fmt"
 	"log"
 	"os"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 type DatabaseShow struct {
@@ -21,7 +23,16 @@ func GoDotEnv(key string) string {
 }
 
 func main() {
-	db, err := sql.Open("postgres", "postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable")
+	arg := os.Args[1:]
+	var db_pattern_name string
+	if len(arg) == 0 {
+		fmt.Printf("No PATTERN arguments. Using default in env\n")
+		db_pattern_name = GoDotEnv("NAME")
+	} else {
+		fmt.Printf("Drop DB with pattern %s\n", arg[0])
+		db_pattern_name = arg[0]
+	}
+	db, err := sql.Open("postgres", GoDotEnv("DB"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,16 +40,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Can not connect to database : %v\n", err)
 	}
-
-	// ! change pattern here V
-	db_pattern_name := GoDotEnv("NAME")
-	// !
-
 	sql_stm := `
 		select 'drop database '||n.datname||';' as "name"
 		FROM(select datname from pg_database where datname like '%%` + db_pattern_name + `%%') as n
 	`
-	rows, err := db.Query(sql_stm)
+	rows, _ := db.Query(sql_stm)
 	data := []DatabaseShow{}
 	for rows.Next() {
 		temp := DatabaseShow{}
@@ -52,9 +58,10 @@ func main() {
 	for _, ele := range data {
 		_, err := db.Exec(ele.Name)
 		if err != nil {
-			log.Fatalf("Error from drop database : %v\n", err)
+			fmt.Printf("Error from drop database : %v\n", err)
 		}
 	}
 
+	defer rows.Close()
 	defer db.Close()
 }
