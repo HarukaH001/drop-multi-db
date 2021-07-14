@@ -15,7 +15,8 @@ type DatabaseShow struct {
 }
 
 func GoDotEnv(key string) string {
-	err := godotenv.Load(".env")
+	path := os.Getenv("PDROP")
+	err := godotenv.Load(fmt.Sprintf("%s.env", path))
 	if err != nil {
 		log.Fatalf("Error loading .env file")
 	}
